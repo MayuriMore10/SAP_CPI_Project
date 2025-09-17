@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAP CPI Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>SAP CPI Trial Dashboard</h1>
+
+        <div class="card">
+            <h2>Actions</h2>
+            <div class="actions">
+                <button id="btnMessageStore">Message Store</button>
+                <button id="btnQueues">Queues</button>
+                <button id="btnVariables">Variables</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="header-row">
+                <h2>Result</h2>
+                <button id="btnClear" class="ghost">Clear</button>
+            </div>
+            <pre id="output" class="output">Click a button to load data...</pre>
+        </div>
+    </div>
+
+    <script src="/static/main.js"></script>
+</body>
+<!-- Note: Authentication (OAuth token retrieval) is performed by the backend using env vars. -->
+</html>
+
+
