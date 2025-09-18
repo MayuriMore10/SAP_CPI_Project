@@ -40,6 +40,19 @@ h2 { font-size: 18px; margin: 0 0 12px; color: var(--text); }
 }
 
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); }
+input {
+    background: #0b1220;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+@media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; }
+}
 
 button {
     appearance: none;
@@ -70,6 +83,8 @@ button.ghost {
     border: 1px solid var(--border);
     border-radius: 12px;
     color: #cbd5e1;
+    font-size: 16px;
+    line-height: 1.6;
     overflow: auto;
 }
 

@@ -4,13 +4,13 @@ from typing import Dict, Optional
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request, session
 from flask_cors import CORS
 
 
 def create_app() -> Flask:
 	app = Flask(__name__, static_folder="static", template_folder="static")
-	CORS(app)
+	CORS(app, supports_credentials=True)
 
 	# Load variables from .env if present
 	load_dotenv()
@@ -26,11 +26,21 @@ def create_app() -> Flask:
 	app.config["CPI_QUEUES_PATH"] = os.getenv("CPI_QUEUES_PATH", "/Queues")
 	app.config["CPI_VARIABLES_PATH"] = os.getenv("CPI_VARIABLES_PATH", "/Variables")
 
+	# Flask session secret
+	app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
+
 	# In-memory token cache
 	token_cache: Dict[str, Optional[str]] = {
 		"access_token": None,
 		"expires_at": None,
 	}
+
+	def _effective_credentials():
+		# Prefer credentials provided via login (session), else env/app config
+		token_url = (session.get("CPI_TOKEN_URL") or app.config["CPI_TOKEN_URL"]).strip()
+		client_id = (session.get("CPI_CLIENT_ID") or app.config["CPI_CLIENT_ID"]).strip()
+		client_secret = (session.get("CPI_CLIENT_SECRET") or app.config["CPI_CLIENT_SECRET"]).strip()
+		return token_url, client_id, client_secret
 
 	def _get_access_token() -> str:
 		# Return cached token if valid
@@ -39,9 +49,7 @@ def create_app() -> Flask:
 		if token_cache.get("access_token") and now < expires_at - 30:
 			return token_cache["access_token"] or ""
 
-		token_url = app.config["CPI_TOKEN_URL"].strip()
-		client_id = app.config["CPI_CLIENT_ID"].strip()
-		client_secret = app.config["CPI_CLIENT_SECRET"].strip()
+		token_url, client_id, client_secret = _effective_credentials()
 		if not token_url or not client_id or not client_secret:
 			raise RuntimeError("CPI OAuth credentials are not configured. Set CPI_TOKEN_URL, CPI_CLIENT_ID, CPI_CLIENT_SECRET.")
 
@@ -61,8 +69,11 @@ def create_app() -> Flask:
 		token_cache["expires_at"] = int(time.time()) + expires_in
 		return token_cache["access_token"] or ""
 
-	def _proxy_get(path: str):
-		base_url = app.config["CPI_BASE_API_URL"].rstrip("/")
+	def _base_api_url() -> str:
+		return (app.config["CPI_BASE_API_URL"] or "").rstrip("/")
+
+	def _proxy_get(path: str, params: Optional[Dict[str, str]] = None):
+		base_url = _base_api_url()
 		if not base_url:
 			raise RuntimeError("CPI_BASE_API_URL is not configured.")
 		url = f"{base_url}{path}"
@@ -71,7 +82,7 @@ def create_app() -> Flask:
 			"Authorization": f"Bearer {access_token}",
 			"Accept": "application/json",
 		}
-		resp = requests.get(url, headers=headers, timeout=60)
+		resp = requests.get(url, headers=headers, params=params or None, timeout=60)
 		# Pass through JSON if possible, else text
 		try:
 			data = resp.json()
@@ -82,6 +93,34 @@ def create_app() -> Flask:
 	@app.route("/")
 	def index():
 		return send_from_directory(app.static_folder, "index.html")
+
+	# -------- Authentication via UI (session) --------
+	@app.route("/api/login", methods=["POST"])
+	def api_login():
+		payload = request.get_json(silent=True) or {}
+		token_url = (payload.get("tokenUrl") or "").strip()
+		client_id = (payload.get("clientId") or "").strip()
+		client_secret = (payload.get("clientSecret") or "").strip()
+		if not token_url or not client_id or not client_secret:
+			return jsonify({"error": "Missing tokenUrl, clientId or clientSecret"}), 400
+		session["CPI_TOKEN_URL"] = token_url
+		session["CPI_CLIENT_ID"] = client_id
+		session["CPI_CLIENT_SECRET"] = client_secret
+		# Reset token cache and validate
+		token_cache["access_token"] = None
+		token_cache["expires_at"] = None
+		try:
+			_ = _get_access_token()
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 401
+		return jsonify({"ok": True})
+
+	@app.route("/api/logout", methods=["POST"])
+	def api_logout():
+		session.clear()
+		token_cache["access_token"] = None
+		token_cache["expires_at"] = None
+		return jsonify({"ok": True})
 
 	@app.route("/api/message-store", methods=["GET"])
 	def message_store():
@@ -104,6 +143,71 @@ def create_app() -> Flask:
 		try:
 			path = app.config["CPI_VARIABLES_PATH"]
 			return _proxy_get(path)
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	# --------- DataStores endpoints ---------
+	@app.route("/api/datastores", methods=["GET"])
+	def datastores_list():
+		try:
+			return _proxy_get("/DataStores", params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	@app.route("/api/datastores/detail", methods=["GET"])
+	def datastores_detail():
+		try:
+			name = request.args.get("name", "")
+			iflow = request.args.get("iflow", "")
+			type_ = request.args.get("type", "")
+			if not name or not iflow or not type_:
+				return jsonify({"error": "Missing query params: name, iflow, type"}), 400
+			entity = f"/DataStores(DataStoreName='{name}',IntegrationFlow='{iflow}',Type='{type_}')"
+			return _proxy_get(entity, params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	# --------- Variables endpoints ---------
+	@app.route("/api/variables/all", methods=["GET"])
+	def variables_list():
+		try:
+			return _proxy_get("/Variables", params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	@app.route("/api/variables/get", methods=["GET"])
+	def variables_get():
+		try:
+			name = request.args.get("name", "")
+			iflow = request.args.get("iflow", "")
+			if not name or not iflow:
+				return jsonify({"error": "Missing query params: name, iflow"}), 400
+			entity = f"/Variables(VariableName='{name}',IntegrationFlow='{iflow}')"
+			return _proxy_get(entity, params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	@app.route("/api/variables", methods=["DELETE"])
+	def variables_delete():
+		try:
+			name = request.args.get("name", "")
+			iflow = request.args.get("iflow", "")
+			if not name or not iflow:
+				return jsonify({"error": "Missing query params: name, iflow"}), 400
+			base_url = _base_api_url()
+			url = f"{base_url}/Variables(VariableName='{name}',IntegrationFlow='{iflow}')"
+			token = _get_access_token()
+			headers = {"Authorization": f"Bearer {token}"}
+			resp = requests.delete(url, headers=headers, timeout=60)
+			return jsonify({"status": resp.status_code, "data": resp.text})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	# --------- JMS Queues ---------
+	@app.route("/api/queues/jms", methods=["GET"])
+	def queues_jms():
+		try:
+			return _proxy_get("/JmsBrokers('Broker1')", params={"$format": "json"})
 		except Exception as exc:  # noqa: BLE001
 			return jsonify({"error": str(exc)}), 500
 

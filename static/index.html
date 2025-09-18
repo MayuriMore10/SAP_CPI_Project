@@ -13,12 +13,35 @@
     <div class="container">
         <h1>SAP CPI Trial Dashboard</h1>
 
-        <div class="card">
+        <div class="card" id="loginCard">
+            <h2>Login (Client Credentials)</h2>
+            <div class="grid">
+                <label>
+                    <span>Token URL</span>
+                    <input id="tokenUrl" type="text" placeholder="https://<subdomain>.authentication.<region>.hana.ondemand.com/oauth/token" />
+                </label>
+                <label>
+                    <span>Client ID</span>
+                    <input id="clientId" type="text" placeholder="Client ID" />
+                </label>
+                <label>
+                    <span>Client Secret</span>
+                    <input id="clientSecret" type="password" placeholder="Client Secret" />
+                </label>
+                <div class="actions">
+                    <button id="btnLogin">Login</button>
+                    <button id="btnLogout" class="ghost">Logout</button>
+                </div>
+                <div id="loginStatus" class="muted"></div>
+            </div>
+        </div>
+
+        <div class="card" id="actionsCard" style="display:none;">
             <h2>Actions</h2>
             <div class="actions">
-                <button id="btnMessageStore">Message Store</button>
-                <button id="btnQueues">Queues</button>
+                <button id="btnDataStores">Data Stores</button>
                 <button id="btnVariables">Variables</button>
+                <button id="btnQueuesJms">JMS Queues</button>
             </div>
         </div>
 
@@ -27,7 +50,7 @@
                 <h2>Result</h2>
                 <button id="btnClear" class="ghost">Clear</button>
             </div>
-            <pre id="output" class="output">Click a button to load data...</pre>
+            <pre id="output" class="output">Login first, then click a button to load data...</pre>
         </div>
     </div>
 
