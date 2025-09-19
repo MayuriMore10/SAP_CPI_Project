@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Show - SAP CPI Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="light">
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="brand">Dashboard</div>
+            <nav>
+                <a href="/login">Login</a>
+                <a href="/">Home</a>
+                <a class="active" href="/show">Message Stores</a>
+            </nav>
+        </aside>
+        <main class="content">
+            <div class="container">
+                <h1>Explore Message Stores</h1>
+                <p class="muted">Choose a category to view detailed information and data from your tenant.</p>
+                <div class="big-cards">
+                    <div class="bigcard ds" id="btnShowDataStores">
+                        <div class="bg-accent"></div>
+                        <div class="bigcard-title">Data Stores</div>
+                        <div class="bigcard-sub">View and manage persistent data storage</div>
+                        <div class="bigcard-desc">Access message stores, view metadata, and manage data persistence across integration flows.</div>
+                    </div>
+                    <div class="bigcard vars" id="btnShowVariables">
+                        <div class="bg-accent"></div>
+                        <div class="bigcard-title">Variables</div>
+                        <div class="bigcard-sub">Configure and manage flow parameters</div>
+                        <div class="bigcard-desc">View, create, update, and delete integration flow variables and configuration settings.</div>
+                    </div>
+                    <div class="bigcard jms" id="btnShowQueues">
+                        <div class="bg-accent"></div>
+                        <div class="bigcard-title">JMS Queues</div>
+                        <div class="bigcard-sub">Monitor asynchronous messaging</div>
+                        <div class="bigcard-desc">Track message queues, monitor broker health, and manage asynchronous message processing.</div>
+                    </div>
+                </div>
+                <div id="tableWrap" class="table-wrap"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    const tableWrap = document.getElementById('tableWrap');
+    function renderTable(items){
+	if (!Array.isArray(items)) items = [];
+	if (items.length === 0){ tableWrap.innerHTML = '<div class="muted">No data</div>'; return; }
+	const columns = Object.keys(items[0]);
+	let html = '<table class="table"><thead><tr>' + columns.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+	for (const row of items){
+		html += '<tr>' + columns.map(c=>`<td>${escapeHtml(row[c])}</td>`).join('') + '</tr>';
+	}
+	html += '</tbody></table>';
+	tableWrap.innerHTML = html;
+    }
+    function escapeHtml(v){
+	if (v == null) return '';
+	return String(v).replace(/[&<>"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+    }
+    async function fetchAndRender(path){
+	const res = await fetch(path);
+	const data = await res.json();
+	const items = normalize(data);
+	renderTable(items);
+    }
+    function normalize(resp){
+	if (!resp || !resp.data) return [];
+	const data = resp.data;
+	if (data.d && Array.isArray(data.d.results)){
+		return data.d.results.map(pick);
+	}
+	if (data.d && typeof data.d === 'object'){
+		return [pick(data.d)];
+	}
+	return [];
+    }
+    function pick(obj){
+	const keys = ['DataStoreName','IntegrationFlow','VariableName','QueueName','State','Status','CreatedAt','LastModifiedAt'];
+	const out = {};
+	for (const k of keys){ if (k in obj) out[k] = obj[k]; }
+	return out;
+    }
+    document.getElementById('btnShowDataStores').addEventListener('click', ()=> {
+        window.location.href = '/datastores';
+    });
+    document.getElementById('btnShowVariables').addEventListener('click', ()=> {
+        window.location.href = '/variables';
+    });
+    document.getElementById('btnShowQueues').addEventListener('click', ()=> {
+        window.location.href = '/queues';
+    });
+    </script>
+</body>
+</html>
+
+

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Data Stores - SAP CPI Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="light">
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="brand">Dashboard</div>
+            <nav>
+                <a href="/login">Login</a>
+                <a href="/">Home</a>
+                <a href="/show">Message Stores</a>
+            </nav>
+        </aside>
+        <main class="content">
+            <div class="container">
+                <h1>Data Stores</h1>
+                <div class="card">
+                    <h2>Overview</h2>
+                    <p>Data Stores in SAP Integration Suite provide persistent storage for messages and data during integration flow execution. They are essential for reliable messaging, retry mechanisms, and data aggregation scenarios.</p>
+                </div>
+                <div class="actions">
+                    <button id="btnLoadDataStores">Load Data Stores</button>
+                    <button id="btnLoadEntries">Load Data Store Entries</button>
+                    <button id="btnClear" class="ghost">Clear</button>
+                </div>
+                <div id="tableWrap" class="table-wrap"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    const tableWrap = document.getElementById('tableWrap');
+    function renderTable(items){
+        if (!Array.isArray(items)) items = [];
+        if (items.length === 0){ tableWrap.innerHTML = '<div class="muted">No data available</div>'; return; }
+        
+        // Get all unique columns from all items
+        const allColumns = new Set();
+        items.forEach(item => {
+            Object.keys(item).forEach(key => allColumns.add(key));
+        });
+        const columns = Array.from(allColumns);
+        
+        console.log('Table columns:', columns);
+        
+        let html = '<table class="table"><thead><tr>' + columns.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+        for (const row of items){
+            html += '<tr>' + columns.map(c=>`<td>${escapeHtml(row[c] || '')}</td>`).join('') + '</tr>';
+        }
+        html += '</tbody></table>';
+        tableWrap.innerHTML = html;
+    }
+    function escapeHtml(v){
+        if (v == null) return '';
+        return String(v).replace(/[&<>"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
+    }
+    async function fetchAndRender(path){
+        try {
+            const res = await fetch(path);
+            const data = await res.json();
+            console.log('Raw API response:', data);
+            const items = normalize(data);
+            console.log('Normalized items:', items);
+            renderTable(items);
+        } catch (err) {
+            tableWrap.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+        }
+    }
+    function normalize(resp){
+        if (!resp || !resp.data) return [];
+        const data = resp.data;
+        if (data.d && Array.isArray(data.d.results)){
+            return data.d.results.map(pick);
+        }
+        if (data.d && typeof data.d === 'object'){
+            return [pick(data.d)];
+        }
+        return [];
+    }
+    function pick(obj){
+        // Check what fields are actually available in the response
+        console.log('Available fields in DataStore:', Object.keys(obj));
+        
+        // Return all fields from the object to see what's actually available
+        const out = {};
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                out[key] = obj[key];
+            }
+        }
+        return out;
+    }
+    function pickEntries(obj){
+        const keys = ['Id','DataStoreName','IntegrationFlow','Type','CreatedAt','LastModifiedAt','Status','MessageId','CorrelationId'];
+        const out = {};
+        for (const k of keys){ if (k in obj) out[k] = obj[k]; }
+        return out;
+    }
+    document.getElementById('btnLoadDataStores').addEventListener('click', ()=> fetchAndRender('/api/datastores'));
+    document.getElementById('btnLoadEntries').addEventListener('click', ()=> fetchAndRenderEntries('/api/datastores/entries-new'));
+    document.getElementById('btnClear').addEventListener('click', ()=> { tableWrap.innerHTML = ''; });
+    
+    async function fetchAndRenderEntries(path){
+        try {
+            const res = await fetch(path);
+            const data = await res.json();
+            const items = normalizeEntries(data);
+            renderTable(items);
+        } catch (err) {
+            tableWrap.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+        }
+    }
+    function normalizeEntries(resp){
+        if (!resp || !resp.data) return [];
+        const data = resp.data;
+        if (data.d && Array.isArray(data.d.results)){
+            return data.d.results.map(pickEntries);
+        }
+        if (data.d && typeof data.d === 'object'){
+            return [pickEntries(data.d)];
+        }
+        return [];
+    }
+    </script>
+</body>
+</html>

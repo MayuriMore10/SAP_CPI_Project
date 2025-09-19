@@ -9,52 +9,119 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <div class="container">
-        <h1>SAP CPI Trial Dashboard</h1>
-
-        <div class="card" id="loginCard">
-            <h2>Login (Client Credentials)</h2>
-            <div class="grid">
-                <label>
-                    <span>Token URL</span>
-                    <input id="tokenUrl" type="text" placeholder="https://<subdomain>.authentication.<region>.hana.ondemand.com/oauth/token" />
-                </label>
-                <label>
-                    <span>Client ID</span>
-                    <input id="clientId" type="text" placeholder="Client ID" />
-                </label>
-                <label>
-                    <span>Client Secret</span>
-                    <input id="clientSecret" type="password" placeholder="Client Secret" />
-                </label>
-                <div class="actions">
-                    <button id="btnLogin">Login</button>
-                    <button id="btnLogout" class="ghost">Logout</button>
+<body class="light">
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="brand">Dashboard</div>
+            <nav>
+                <a href="/login">Login</a>
+                <a class="active" href="/">Home</a>
+                <a href="/show">Message Stores</a>
+            </nav>
+        </aside>
+        <main class="content">
+            <div class="container">
+                <h1>Home</h1>
+                
+                <div class="card">
+                    <h2>Data Stores</h2>
+                    <p>Data Stores in SAP Integration Suite are persistent storage locations that allow you to store and retrieve data during integration flow execution. They provide reliable data persistence and are essential for complex integration scenarios.</p>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>Purpose</h4>
+                            <p>Store messages, payloads, or any data that needs to be persisted across integration flow steps or for later retrieval.</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>Use Cases</h4>
+                            <p>Message persistence, retry mechanisms, data aggregation, audit trails, and decoupling integration steps.</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>Key Properties</h4>
+                            <p>DataStoreName, IntegrationFlow, Type, CreatedAt, LastModifiedAt, and message content.</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>Access Method</h4>
+                            <p>Via CPI TMN APIs using OAuth 2.0 authentication. Supports CRUD operations and querying.</p>
+                        </div>
+                    </div>
                 </div>
-                <div id="loginStatus" class="muted"></div>
-            </div>
-        </div>
 
-        <div class="card" id="actionsCard" style="display:none;">
-            <h2>Actions</h2>
-            <div class="actions">
-                <button id="btnDataStores">Data Stores</button>
-                <button id="btnVariables">Variables</button>
-                <button id="btnQueuesJms">JMS Queues</button>
-            </div>
-        </div>
+                <div class="card">
+                    <h2>Variables</h2>
+                    <p>Variables in SAP Integration Suite are configuration parameters that can be set at the integration flow level. They provide flexibility and reusability by allowing you to externalize configuration values.</p>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>Purpose</h4>
+                            <p>Store configuration values, connection parameters, and runtime settings that can be modified without changing the integration flow.</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>Types</h4>
+                            <p>String, Number, Boolean, and complex types. Can be encrypted for sensitive data like passwords and API keys.</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>Scope</h4>
+                            <p>Integration Flow level variables that can be accessed by all steps within the same flow.</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>Management</h4>
+                            <p>Create, read, update, and delete variables via CPI APIs. Supports bulk operations and validation.</p>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="card">
-            <div class="header-row">
-                <h2>Result</h2>
-                <button id="btnClear" class="ghost">Clear</button>
+                <div class="card">
+                    <h2>JMS Queues</h2>
+                    <p>JMS (Java Message Service) Queues in SAP Integration Suite provide asynchronous messaging capabilities. They enable reliable message delivery and decoupling between different parts of your integration landscape.</p>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <h4>Purpose</h4>
+                            <p>Enable asynchronous messaging, message queuing, and reliable delivery between different systems and integration flows.</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>Features</h4>
+                            <p>Message persistence, delivery guarantees, dead letter queues, and support for different message types.</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>Broker Management</h4>
+                            <p>Managed through JMS Brokers (typically 'Broker1' in trial environments) with configurable queue properties.</p>
+                        </div>
+                        <div class="info-item">
+                            <h4>Monitoring</h4>
+                            <p>Track queue depth, message processing rates, and broker health through CPI monitoring APIs.</p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-            <pre id="output" class="output">Login first, then click a button to load data...</pre>
-        </div>
+        </main>
     </div>
 
-    <script src="/static/main.js"></script>
+    <script>
+    document.querySelectorAll('.bigcard').forEach(c => {
+        c.addEventListener('click', () => {
+            window.location.href = c.getAttribute('data-link');
+        });
+    });
+    // Fetch KPIs (counts) for cards
+    async function fetchCount(path){
+        try {
+            const res = await fetch(path);
+            const data = await res.json();
+            if (data && data.data && data.data.d && Array.isArray(data.data.d.results)){
+                return data.data.d.results.length;
+            }
+            return undefined;
+        } catch { return undefined; }
+    }
+    (async () => {
+        const ds = await fetchCount('/api/datastores');
+        if (typeof ds === 'number'){ document.getElementById('kpiDs').textContent = ds; document.getElementById('kpiDsKpi').textContent = ds; }
+        const vr = await fetchCount('/api/variables/all');
+        if (typeof vr === 'number'){ document.getElementById('kpiVars').textContent = vr; document.getElementById('kpiVarsKpi').textContent = vr; }
+        const jm = await fetchCount('/api/queues/jms');
+        if (typeof jm === 'number'){ document.getElementById('kpiJms').textContent = jm; document.getElementById('kpiJmsKpi').textContent = jm; }
+    })();
+    </script>
 </body>
 <!-- Note: Authentication (OAuth token retrieval) is performed by the backend using env vars. -->
 </html>

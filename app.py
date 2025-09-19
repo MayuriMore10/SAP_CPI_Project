@@ -92,7 +92,42 @@ def create_app() -> Flask:
 
 	@app.route("/")
 	def index():
+		# Check if user is logged in (has session credentials)
+		if not session.get("CPI_CLIENT_ID"):
+			return send_from_directory(app.static_folder, "login.html")
 		return send_from_directory(app.static_folder, "index.html")
+
+	@app.route("/login")
+	def login_page():
+		return send_from_directory(app.static_folder, "login.html")
+
+	@app.route("/show")
+	def show_page():
+		# Check if user is logged in
+		if not session.get("CPI_CLIENT_ID"):
+			return send_from_directory(app.static_folder, "login.html")
+		return send_from_directory(app.static_folder, "show.html")
+
+	@app.route("/datastores")
+	def datastores_page():
+		# Check if user is logged in
+		if not session.get("CPI_CLIENT_ID"):
+			return send_from_directory(app.static_folder, "login.html")
+		return send_from_directory(app.static_folder, "datastores.html")
+
+	@app.route("/variables")
+	def variables_page():
+		# Check if user is logged in
+		if not session.get("CPI_CLIENT_ID"):
+			return send_from_directory(app.static_folder, "login.html")
+		return send_from_directory(app.static_folder, "variables.html")
+
+	@app.route("/queues")
+	def queues_page():
+		# Check if user is logged in
+		if not session.get("CPI_CLIENT_ID"):
+			return send_from_directory(app.static_folder, "login.html")
+		return send_from_directory(app.static_folder, "queues.html")
 
 	# -------- Authentication via UI (session) --------
 	@app.route("/api/login", methods=["POST"])
@@ -208,6 +243,146 @@ def create_app() -> Flask:
 	def queues_jms():
 		try:
 			return _proxy_get("/JmsBrokers('Broker1')", params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	# -------- Additional Data Stores APIs --------
+	@app.route("/api/datastores/detail-new", methods=["GET"])
+	def datastores_detail_new():
+		"""Get specific Data Store details"""
+		data_store_name = request.args.get('DataStoreName', '')
+		integration_flow = request.args.get('IntegrationFlow', '')
+		store_type = request.args.get('Type', '')
+		
+		if not data_store_name:
+			return jsonify({"error": "DataStoreName parameter is required"}), 400
+		
+		# Build the OData filter
+		filter_parts = [f"DataStoreName='{data_store_name}'"]
+		if integration_flow:
+			filter_parts.append(f"IntegrationFlow='{integration_flow}'")
+		if store_type:
+			filter_parts.append(f"Type='{store_type}'")
+		
+		filter_str = "(" + ",".join(filter_parts) + ")"
+		try:
+			return _proxy_get(f"/DataStores{filter_str}", params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	@app.route("/api/datastores/delete-new", methods=["DELETE"])
+	def datastores_delete_new():
+		"""Delete a specific Data Store"""
+		data_store_name = request.args.get('DataStoreName', '')
+		integration_flow = request.args.get('IntegrationFlow', '')
+		store_type = request.args.get('Type', '')
+		
+		if not data_store_name:
+			return jsonify({"error": "DataStoreName parameter is required"}), 400
+		
+		# Build the OData filter
+		filter_parts = [f"DataStoreName='{data_store_name}'"]
+		if integration_flow:
+			filter_parts.append(f"IntegrationFlow='{integration_flow}'")
+		if store_type:
+			filter_parts.append(f"Type='{store_type}'")
+		
+		filter_str = "(" + ",".join(filter_parts) + ")"
+		try:
+			return _proxy_delete(f"/DataStores{filter_str}")
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	@app.route("/api/datastores/entries-new", methods=["GET"])
+	def datastores_entries_new():
+		"""Get Data Store Entries"""
+		try:
+			return _proxy_get("/DataStoreEntries", params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	@app.route("/api/datastores/entries/detail-new", methods=["GET"])
+	def datastores_entries_detail_new():
+		"""Get specific Data Store Entries for a Data Store"""
+		data_store_name = request.args.get('DataStoreName', '')
+		integration_flow = request.args.get('IntegrationFlow', '')
+		store_type = request.args.get('Type', '')
+		
+		if not data_store_name:
+			return jsonify({"error": "DataStoreName parameter is required"}), 400
+		
+		# Build the OData filter
+		filter_parts = [f"DataStoreName='{data_store_name}'"]
+		if integration_flow:
+			filter_parts.append(f"IntegrationFlow='{integration_flow}'")
+		if store_type:
+			filter_parts.append(f"Type='{store_type}'")
+		
+		filter_str = "(" + ",".join(filter_parts) + ")"
+		try:
+			return _proxy_get(f"/DataStores{filter_str}/Entries", params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	@app.route("/api/datastores/entries/by-id-new", methods=["GET"])
+	def datastores_entries_by_id_new():
+		"""Get specific Data Store Entry by ID"""
+		entry_id = request.args.get('Id', '')
+		data_store_name = request.args.get('DataStoreName', '')
+		integration_flow = request.args.get('IntegrationFlow', '')
+		
+		if not entry_id or not data_store_name:
+			return jsonify({"error": "Id and DataStoreName parameters are required"}), 400
+		
+		# Build the OData filter
+		filter_parts = [f"Id='{entry_id}'", f"DataStoreName='{data_store_name}'"]
+		if integration_flow:
+			filter_parts.append(f"IntegrationFlow='{integration_flow}'")
+		
+		filter_str = "(" + ",".join(filter_parts) + ")"
+		try:
+			return _proxy_get(f"/DataStoreEntries{filter_str}", params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	# -------- Additional Variables APIs --------
+	@app.route("/api/variables/detail-new", methods=["GET"])
+	def variables_detail_new():
+		"""Get specific Variable details"""
+		variable_name = request.args.get('VariableName', '')
+		integration_flow = request.args.get('IntegrationFlow', '')
+		
+		if not variable_name:
+			return jsonify({"error": "VariableName parameter is required"}), 400
+		
+		# Build the OData filter
+		filter_parts = [f"VariableName='{variable_name}'"]
+		if integration_flow:
+			filter_parts.append(f"IntegrationFlow='{integration_flow}'")
+		
+		filter_str = "(" + ",".join(filter_parts) + ")"
+		try:
+			return _proxy_get(f"/Variables{filter_str}", params={"$format": "json"})
+		except Exception as exc:  # noqa: BLE001
+			return jsonify({"error": str(exc)}), 500
+
+	@app.route("/api/variables/delete-new", methods=["DELETE"])
+	def variables_delete_new():
+		"""Delete a specific Variable"""
+		variable_name = request.args.get('VariableName', '')
+		integration_flow = request.args.get('IntegrationFlow', '')
+		
+		if not variable_name:
+			return jsonify({"error": "VariableName parameter is required"}), 400
+		
+		# Build the OData filter
+		filter_parts = [f"VariableName='{variable_name}'"]
+		if integration_flow:
+			filter_parts.append(f"IntegrationFlow='{integration_flow}'")
+		
+		filter_str = "(" + ",".join(filter_parts) + ")"
+		try:
+			return _proxy_delete(f"/Variables{filter_str}")
 		except Exception as exc:  # noqa: BLE001
 			return jsonify({"error": str(exc)}), 500
 
