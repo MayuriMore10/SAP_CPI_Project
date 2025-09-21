@@ -1,3 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
+
 :root {
     --bg: #f8f6ff; /* light purple nude */
     --card: #ffffff;
@@ -5,7 +9,7 @@
     --text: #000000; /* pure black */
     --accent: #b19cd9; /* purple nude */
     --accent-2: #9b7dd9; /* medium purple */
-    --accent-3: #d4c5e8; /* light purple */
+    --accent-3: #d2c0e9; /* light purple */
     --accent-4: #a68bd9; /* deep purple */
     --accent-5: #e6d9f2; /* pale purple */
     --accent-6: #8b5cf6; /* vibrant purple */
@@ -13,7 +17,7 @@
     --border: #e6d9f2; /* light purple border */
     --success: #9b7dd9;
     --warning: #d4c5e8;
-    --error: #c4a6e8;
+    --error: #c2a1eb;
 }
 
 * { box-sizing: border-box; }
@@ -238,6 +242,29 @@ input:focus { outline: 2px solid #93c5fd; outline-offset: 2px; }
 .login-form { display: grid; gap: 20px; }
 .login-form label { display: grid; gap: 8px; }
 .login-form button { width: 100%; padding: 14px; font-size: 16px; margin-top: 8px; }
+
+/* Team heading specific styles */
+.team-heading {
+    font-family: 'Libre Baskerville', serif !important;
+    font-weight: 700 !important;
+    font-size: 24px !important;
+    color: #333333 !important;
+    text-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+    letter-spacing: 1px !important;
+    margin: 0 0 8px !important;
+    position: relative !important;
+    animation: glow 2s ease-in-out infinite alternate !important;
+    text-transform: uppercase !important;
+}
+
+@keyframes glow {
+    from {
+        filter: drop-shadow(0 0 5px rgba(102, 126, 234, 0.3));
+    }
+    to {
+        filter: drop-shadow(0 0 15px rgba(118, 75, 162, 0.5));
+    }
+}
 
 /* Information grid for home page */
 .info-grid { 

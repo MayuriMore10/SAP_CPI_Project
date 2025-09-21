@@ -90,7 +90,12 @@
         const out = {};
         for (const key in obj) {
             if (obj.hasOwnProperty(key)) {
-                out[key] = obj[key];
+                // Format date fields
+                if (key.includes('Date') || key.includes('At') || key.includes('Time')) {
+                    out[key] = formatDate(obj[key]);
+                } else {
+                    out[key] = obj[key];
+                }
             }
         }
         return out;
@@ -98,8 +103,55 @@
     function pickEntries(obj){
         const keys = ['Id','DataStoreName','IntegrationFlow','Type','CreatedAt','LastModifiedAt','Status','MessageId','CorrelationId'];
         const out = {};
-        for (const k of keys){ if (k in obj) out[k] = obj[k]; }
+        for (const k of keys){ 
+            if (k in obj) {
+                // Format date fields
+                if (k.includes('Date') || k.includes('At') || k.includes('Time')) {
+                    out[k] = formatDate(obj[k]);
+                } else {
+                    out[k] = obj[k];
+                }
+            }
+        }
         return out;
+    }
+    
+    function formatDate(dateString) {
+        if (!dateString) return '';
+        try {
+            let date;
+            
+            // Handle Microsoft .NET JSON date format: /Date(1757510738298)/
+            if (dateString.includes('/Date(') && dateString.includes(')/')) {
+                const timestamp = dateString.match(/\/Date\((\d+)\)\//);
+                if (timestamp && timestamp[1]) {
+                    date = new Date(parseInt(timestamp[1]));
+                }
+            }
+            // Handle ISO format: 2023-12-25T10:30:00Z
+            else if (dateString.includes('T')) {
+                date = new Date(dateString);
+            }
+            // Handle already formatted dates
+            else if (dateString.includes('/')) {
+                return dateString;
+            }
+            // Try parsing as regular timestamp or other format
+            else {
+                date = new Date(dateString);
+            }
+            
+            if (!date || isNaN(date.getTime())) return dateString;
+            
+            // Format as DD/MM/YYYY
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            
+            return `${day}/${month}/${year}`;
+        } catch (e) {
+            return dateString;
+        }
     }
     document.getElementById('btnLoadDataStores').addEventListener('click', ()=> fetchAndRender('/api/datastores'));
     document.getElementById('btnLoadEntries').addEventListener('click', ()=> fetchAndRenderEntries('/api/datastores/entries-new'));
